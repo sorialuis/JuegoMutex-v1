@@ -4,6 +4,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#define MS 1000;
+
 // Food
 typedef struct {
     char name[50];
@@ -22,21 +24,23 @@ typedef struct {
     Food choice;
     int tolerance;
     int served;
-    pthread_mutex_t timeout;
+    int timeout;
+    pthread_mutex_t mutex_Cashier;
 } Client;
 
 //Local
 
 typedef struct {
-    Cashier *cajero;
-    Client *clients;
+    Cashier cajero;
+    pthread_t *clients;
     Food *menu;
+    int *queue;
 }FoodPlace;
 
 
 // Threads
 
-void *newClient(void *);
+void *street_thread(void *);
 void *cliente(void *);
 void *cajero(void *);
 
@@ -51,7 +55,23 @@ int main(){
     int cantidad_cajeros;
     cantidad_cajeros = 1;
 
-    Food *menu = menuSetup();
+    //Crear local
+    FoodPlace mercadoChino;
+    mercadoChino.queue = calloc(200, sizeof(int));
+    mercadoChino.clients = calloc(50, sizeof(pthread_t));
+    mercadoChino.menu = menuSetup(); 
+    mercadoChino.cajero = Cashier;
+
+
+
+
+    //Crear hilo calle
+    pthread_t hilo_calle;
+    pthread_create(&hilo_calle, NULL, street_thread, (void *)&mercadoChino);
+
+
+
+
 
     printf("%s\n",pickFood(menu).name);
     printf("%d\n",getMaxWaitTime(menu));
@@ -114,4 +134,23 @@ int getMaxWaitTime(Food *menu){
             min = menu[i].prepTime;
 
     return min * 4;
+}
+
+void *street_thread(void *){
+    int cant_max = 20;
+    int tolerance = getMaxWaitTime(mercadoChino->menu);
+    for(int i = 0; i < cant_max; i++){
+        Client temp;
+        temp.id = i;
+
+        temp.choice = pickFood(mercadoChino->menu);
+        temp.tolerance = tolerance;
+        temp.served = 0;
+        // pthread_mutex_t mutex_queue;
+        pthread_t *hilo_cliente = calloc(1,sizeof(pthread_t));
+        pthread_create(hilo_cliente, NULL, onNewClient, (void *)&temp);//lleva el tiempo y se habilita o desabilita
+        mercadoChino->clients[i] = hilo_cliente; 
+        usleep((rand()%300 + 200) * MS);
+    }
+
 }

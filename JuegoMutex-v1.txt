@@ -1,0 +1,14 @@
+Se debe realizar el motor de un juego que denominaremos "Comidas Para Llevar". Este juego simulará la actividad de un local de comidas rápidas en el cual ingresan clientes y los empleados tienen que preparar el plato indicado.
+
+En esta primer etapa se deberá trabajar sobre tres tipos de hilos:
+
+   * cajero que da curso a los pedidos de los clientes y, luego de terminado el pedido, les cobra,
+   
+   * calle que provee los (hilos) cliente para atender,
+    cliente que quieren comprar comida.
+
+El cajero atiende los pedidos que tienen un tiempo dado según la comida pedida. La calle genera clientes separados en tiempo aleatorio. Los clientes ingresan al local y esperan su turno, pero no esperan más tiempo que 4 veces la comida más rápida del local.
+
+Se debe sincronizar la interacción entre los hilos utilizando MUTEXES según la necesidad (la caja es un Split Mutex).
+La entrega debe realizarse comprimiendo los archivos de código fuente bajo formato ZIP o TAR.GZ.
+El código fuente debe tener comentarios que describan cada parte del programa. 

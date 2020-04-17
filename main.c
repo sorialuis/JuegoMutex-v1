@@ -6,13 +6,13 @@
 
 #define MS 1000
 
-// Food
+/* Food*/
 typedef struct {
     char name[50];
     int prepTime;
 } Food;
 
-// Client
+/*Client*/
 typedef struct {
     int id;
     Food choice;
@@ -22,7 +22,7 @@ typedef struct {
 //    pthread_mutex_t mutex_Cashier;
 } Client;
 
-// Cashier
+/*Cashier*/
 typedef struct {
     Client *current;
 
@@ -33,7 +33,7 @@ typedef struct {
     pthread_mutex_t cookMtx;
 } Cashier;
 
-//Local
+/*Local*/
 
 typedef struct {
     Cashier cashier;
@@ -43,7 +43,7 @@ typedef struct {
 }FoodPlace;
 
 
-// Threads
+/*Threads*/
 
 void *streetThread(void *);
 void *clientThread(void *);
@@ -52,7 +52,7 @@ void *cashierThread(void *);
 void *serveThread(void *);
 void *cookThread(void *);
 
-//Menu Functions
+/*Menu Functions*/
 Food *menuSetup();
 Food pickFood(Food * menu);
 int getMaxWaitTime(Food *menu);
@@ -63,26 +63,26 @@ int main(){
     int cantidad_cajeros;
     cantidad_cajeros = 1;
 
-    //Crear local
+    /*Crear local*/
     FoodPlace mercadoChino;
     mercadoChino.queue = calloc(200, sizeof(int));
     mercadoChino.clients = calloc(50, sizeof(pthread_t));
     mercadoChino.menu = menuSetup();
 
 
-    //Crear hilo calle
+    /*Crear hilo calle*/
     pthread_t street;
     pthread_create(&street, NULL, streetThread, (void *)&mercadoChino);
     pthread_join(street,NULL);
 
+    /*Crear hilo cajero*/
     pthread_t cashier;
-
     pthread_create(&cashier, NULL, cashierThread, (void *)&mercadoChino);
     pthread_join(cashier,NULL);
 
     return 0;
 }
-
+/*Devuelve un arreglo del tipo comida con el menu*/
 Food* menuSetup(){
 
     Food *menu = calloc(10, sizeof(Food));
@@ -120,10 +120,12 @@ Food* menuSetup(){
     return menu;
 }
 
+/*Selecciona una comida del menu*/
 Food pickFood(Food *menu){
     return menu[rand()%10];
 }
 
+/*Devuelve las toletancias de espera*/
 int getMaxWaitTime(Food *menu){
 
     int min = menu[0].prepTime;
@@ -134,7 +136,7 @@ int getMaxWaitTime(Food *menu){
 
     return min * 4 * MS;
 }
-
+/*Dispara el hilo calle que genera los hilos cliente*/
 void *streetThread(void *arg){
 
     FoodPlace *mercadoChino = (FoodPlace *)arg;
@@ -157,7 +159,7 @@ void *streetThread(void *arg){
         mercadoChino->clients[i] = *client;
     }
 }
-
+/*Hilo cliente tiene que esperar la tolerancia o ser atendido*/
 void *clientThread(void *arg){
     Client *client = (Client *)arg;
 
@@ -179,7 +181,7 @@ void *clientThread(void *arg){
 
     pthread_exit(NULL);
 }
-
+/*Encargado de tomar clientes y cocinarles*/
 void *cashierThread(void *arg){
     FoodPlace *mercadoChino = (FoodPlace *)arg;
 
@@ -193,15 +195,14 @@ void *cashierThread(void *arg){
     pthread_join(mercadoChino->cashier.cook,NULL);
 
 }
-
-
+/*Toma los clientes a atender*/
 void *serveThread(void *arg){
     FoodPlace *mercadoChino = (FoodPlace *)arg;
 
 
 
 }
-
+/*Cocina en el tiempo de la comida*/
 void *cookThread(void *arg){
     Cashier *cashier = (Cashier *)arg;
 

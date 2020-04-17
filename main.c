@@ -18,23 +18,26 @@ typedef struct {
     Food choice;
     int tolerance;
     int served;
-    int timeout;
+    int orderReady;
 //    pthread_mutex_t mutex_Cashier;
 } Client;
 
 // Cashier
 typedef struct {
     Client *current;
-    pthread_t serveThread;
-    pthread_t cookThread;
 
+    pthread_t serve;
+    pthread_t cook;
+
+    pthread_mutex_t serveMtx;
+    pthread_mutex_t cookMtx;
 } Cashier;
 
 //Local
 
 typedef struct {
-    Cashier cajero;
-    pthread_t *clients;
+    Cashier cashier;
+    Client *clients;
     Food *menu;
     int *queue;
 }FoodPlace;
@@ -44,7 +47,10 @@ typedef struct {
 
 void *streetThread(void *);
 void *clientThread(void *);
+
 void *cashierThread(void *);
+void *serveThread(void *);
+void *cookThread(void *);
 
 //Menu Functions
 Food *menuSetup();
@@ -61,12 +67,13 @@ int main(){
     FoodPlace mercadoChino;
     mercadoChino.queue = calloc(200, sizeof(int));
     mercadoChino.clients = calloc(50, sizeof(pthread_t));
-    mercadoChino.menu = menuSetup(); 
+    mercadoChino.menu = menuSetup();
 
 
     //Crear hilo calle
     pthread_t street;
     pthread_create(&street, NULL, streetThread, (void *)&mercadoChino);
+    pthread_join(street,NULL);
 
     pthread_t cashier;
 
@@ -107,7 +114,7 @@ Food* menuSetup(){
     sprintf(menu[8].name,"Matambre");
     menu[8].prepTime = 100;
 
-    sprintf(menu[9].name,"Choripan");
+    sprintf(menu[9].name,"Murcielago");
     menu[9].prepTime = 80;
 
     return menu;
@@ -136,7 +143,6 @@ void *streetThread(void *arg){
     int tolerance = getMaxWaitTime(mercadoChino->menu);
 
     for(int i = 0; i < cant_max; i++){
-
         usleep((rand()%300 + 200) * MS);
 
         Client *client = calloc(1,sizeof(Client));
@@ -148,8 +154,7 @@ void *streetThread(void *arg){
         // pthread_mutex_t mutex_queue;
         pthread_t *client_thread = calloc(1,sizeof(pthread_t));
         pthread_create(client_thread, NULL, clientThread, (void *)client);//lleva el tiempo y se habilita o desabilita
-        mercadoChino->clients[i] = *client_thread;
-
+        mercadoChino->clients[i] = *client;
     }
 }
 
@@ -159,9 +164,49 @@ void *clientThread(void *arg){
     printf("Client %d in queue\n",client->id+1);
     fflush(stdout);
 
+    while ((client->served != 1) && (client->tolerance > 0)){
+        usleep(1 * MS);
+    }
+
+    if(client->served){
+        while (!client->orderReady){
+            usleep(1 * MS);
+        }
+        printf("Client served\n");
+    }else{
+        printf("Client left without food\n");
+    }
+
+    pthread_exit(NULL);
 }
 
 void *cashierThread(void *arg){
     FoodPlace *mercadoChino = (FoodPlace *)arg;
 
+    mercadoChino->cashier.current = NULL;
+    pthread_mutex_lock(&mercadoChino->cashier.cookMtx);
+
+    pthread_create(&mercadoChino->cashier.serve,NULL,serveThread,(void *) &mercadoChino);
+    pthread_create(&mercadoChino->cashier.cook,NULL,cookThread,(void *) &mercadoChino);
+
+    pthread_join(mercadoChino->cashier.serve,NULL);
+    pthread_join(mercadoChino->cashier.cook,NULL);
+
+}
+
+
+void *serveThread(void *arg){
+    FoodPlace *mercadoChino = (FoodPlace *)arg;
+
+
+
+}
+
+void *cookThread(void *arg){
+    Cashier *cashier = (Cashier *)arg;
+
+    pthread_mutex_lock(&cashier->cookMtx);
+
+
+    pthread_mutex_unlock(&cashier->serveMtx);
 }

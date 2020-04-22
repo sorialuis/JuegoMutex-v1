@@ -34,7 +34,6 @@ typedef struct {
 } Cashier;
 
 /*Local*/
-
 typedef struct {
     Cashier cashier;
     Client *clients;
@@ -44,10 +43,8 @@ typedef struct {
 
 
 /*Threads*/
-
 void *streetThread(void *);
 void *clientThread(void *);
-
 void *cashierThread(void *);
 void *serveThread(void *);
 void *cookThread(void *);

@@ -52,12 +52,9 @@ typedef struct {
 
 
 /*Threads*/
-
 void *streetThread(void *);
 void *clientThread(void *);
 void *cashierThread(void *);
-void *serveThread(void *);
-void *cookThread(void *);
 
 /*Menu Functions*/
 Food *menuSetup();
@@ -66,7 +63,7 @@ int getMaxWaitTime(Food *menu);
 
 void atender(SplitMutex *smutex, Client *cliente);
 void cobrar(SplitMutex *smutex, Client *cliente);
-Client* obtenerCliente(FoodPlace *mercadoChino);
+void obtenerCliente(FoodPlace *mercadoChino);
 
 
 
@@ -81,7 +78,7 @@ int main(){
     mercadoChino.queue = calloc(200, sizeof(int));
     mercadoChino.clients = calloc(50, sizeof(pthread_t));
     mercadoChino.menu = menuSetup();
-    mercadoChino.smutex = calle(1, sizeof(SplitMutex));
+    mercadoChino.smutex = calloc(1, sizeof(SplitMutex));
 
 
     /*Crear hilo calle*/
@@ -202,34 +199,19 @@ void *cashierThread(void *arg){
     FoodPlace *mercadoChino = (FoodPlace *)arg;
     mercadoChino->cashier.current = NULL;
     //obtener cliente devielve el cliente el prox cliente a atender
-    mercadoChino->cashier.current = obtenerCliente(mercadoChino);
+    obtenerCliente(mercadoChino);
     while(mercadoChino->cashier.current){
         atender(mercadoChino->smutex, mercadoChino->cashier.current);
         cobrar(mercadoChino->smutex, mercadoChino->cashier.current);
-        mercadoChino->cashier.current = obtenerCliente(mercadoChino);
+        obtenerCliente(mercadoChino);
     }
 
-}
-/*Toma los clientes a atender*/
-void *serveThread(void *arg){
-    FoodPlace *mercadoChino = (FoodPlace *)arg;
-
-
-
-}
-/*Cocina en el tiempo de la comida*/
-void *cookThread(void *arg){
-    Cashier *cashier = (Cashier *)arg;
-
-    pthread_mutex_lock(&cashier->cookMtx);
-
-
-    pthread_mutex_unlock(&cashier->serveMtx);
 }
 
 void atender(SplitMutex *smutex, Client *cliente){
     pthread_mutex_lock(&smutex->cobrar);
-    tiempo = cliente->tolerance;
+    int tiempo;
+    tiempo = cliente->choice.prepTime;
     cliente->served = 1;
     while(!tiempo){
         usleep(1 * MS);
@@ -240,17 +222,17 @@ void atender(SplitMutex *smutex, Client *cliente){
 void cobrar(SplitMutex *smutex, Client *cliente){
     pthread_mutex_lock(&smutex->atender);
     cliente->orderReady = 1;
-    printf("Client %d pedido terminado\n",client->id+1);
+    printf("Client %d pedido terminado\n",cliente->id+1);
     pthread_mutex_unlock(&smutex->cobrar);
 }
 
-Client* obtenerCliente(FoodPlace *mercadoChino){
+void obtenerCliente(FoodPlace *mercadoChino){
     for(int i = 0; i < mercadoChino->cantClientes; i++){
-        if(!mercadoChino->clients[i]->served || !mercadoChino->clients[i]->orderReady 
-        || mercadoChino->clients[i]->tolerance > 0){
-            return mercadoChino->clients[i];
+        if(!mercadoChino->clients[i].served || !mercadoChino->clients[i].orderReady 
+        || mercadoChino->clients[i].tolerance > 0){
+            mercadoChino->cashier.current = &mercadoChino->clients[i];
         }
     }
-    return NULL;
+    mercadoChino->cashier.current = NULL;
 }
 

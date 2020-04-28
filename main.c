@@ -14,6 +14,8 @@ typedef struct {
 
 typedef struct{
     pthread_mutex_t timemux;
+    pthread_mutex_t currentmux;
+    pthread_mutex_t pantalla;
     int currentId;
 }CurrentClient_mux;
 
@@ -67,14 +69,18 @@ int main(){
     mercadoChino.menu = menuSetup();
     mercadoChino.smutex = calloc(1, sizeof(SplitMutex));
     mercadoChino.client_threads = calloc(50,sizeof(pthread_t));
-    mercadoChino.currentClient = calloc(1,sizeof(pthread_mutex_t));
+    mercadoChino.currentClient = calloc(1,sizeof(CurrentClient_mux));
+    mercadoChino.currentClient->currentId = -1;
 
     pthread_mutex_init(&mercadoChino.smutex->atender, NULL);
     pthread_mutex_init(&mercadoChino.smutex->cobrar, NULL);
     pthread_mutex_unlock(&mercadoChino.smutex->cobrar);
-    pthread_mutex_lock(&mercadoChino.smutex->cobrar);
+    pthread_mutex_lock(&mercadoChino.smutex->atender);
     pthread_mutex_init(&mercadoChino.currentClient->timemux, NULL);
     pthread_mutex_unlock(&mercadoChino.currentClient->timemux);
+    pthread_mutex_init(&mercadoChino.currentClient->currentmux, NULL);
+    pthread_mutex_unlock(&mercadoChino.currentClient->currentmux);
+
 
     /*Crear hilo calle*/
     pthread_t street;
@@ -178,10 +184,10 @@ void *streetThread(void *arg){
 /*Hilo cliente tiene que esperar la tolerancia o ser atendido*/
 void *clientThread(void *arg){
     Client *client = (Client *)arg;
-
+    pthread_mutex_lock(&client->currentClient->pantalla);
     printf("Client %d in queue\n",client->id+1);
     fflush(stdout);
-    
+    pthread_mutex_unlock(&client->currentClient->pantalla);
 
     struct timespec wait;
     clock_gettime(CLOCK_REALTIME, &wait);
@@ -190,8 +196,10 @@ void *clientThread(void *arg){
     int respuesta;
     respuesta = pthread_mutex_timedlock(&client->currentClient->timemux,&wait);
     if(respuesta == 0){
-        printf("Client %d served\n",client->id+1);
+        pthread_mutex_lock(&client->currentClient->currentmux);
         client->currentClient->currentId = client->id;
+        // printf("Client %d served\n",client->id+1);
+        pthread_mutex_unlock(&client->currentClient->currentmux);
     }else{
         printf("Client %d left without food\n", client->id+1);
     }
@@ -202,21 +210,35 @@ void *clientThread(void *arg){
 }
 /*Encargado de tomar clientes y cocinarles*/
 void *cashierThread(void *arg){
-    // printf("Cajero\n");
     FoodPlace *mercadoChino = (FoodPlace *)arg;
-    usleep(100000000);
+    
     while(1){
+
+
+
+        usleep(10000);
         pthread_mutex_unlock(&mercadoChino->currentClient->timemux);
-        atender(mercadoChino->smutex, &mercadoChino->clients[mercadoChino->currentClient->currentId]);
-        cobrar(mercadoChino->smutex, &mercadoChino->clients[mercadoChino->currentClient->currentId]);
+        // printf("%d\n", mercadoChino->currentClient->currentId);
+        if(mercadoChino->currentClient->currentId > -1 && mercadoChino->clients[mercadoChino->currentClient->currentId].served == 0){
+            pthread_mutex_lock(&mercadoChino->currentClient->currentmux);
+            atender(mercadoChino->smutex, &mercadoChino->clients[mercadoChino->currentClient->currentId]);
+            cobrar(mercadoChino->smutex, &mercadoChino->clients[mercadoChino->currentClient->currentId]);
+            pthread_mutex_unlock(&mercadoChino->currentClient->currentmux); 
+        } 
+        
+
+        
         
     }
     return NULL;
 }
 
 void atender(SplitMutex *smutex, Client *cliente){
-    pthread_mutex_lock(&smutex->cobrar);
+    pthread_mutex_lock(&smutex->cobrar);    
+    pthread_mutex_lock(&cliente->currentClient->pantalla);
     printf("Client %d por atender\n",cliente->id+1);
+    fflush(stdout);
+    pthread_mutex_unlock(&cliente->currentClient->pantalla);
     int tiempo;
     tiempo = cliente->choice.prepTime;
     cliente->served = 1;
@@ -229,7 +251,10 @@ void atender(SplitMutex *smutex, Client *cliente){
 void cobrar(SplitMutex *smutex, Client *cliente){
     pthread_mutex_lock(&smutex->atender);
     cliente->orderReady = 1;
-    printf("Client %d pedido terminado\n",cliente->id+1);
+    pthread_mutex_lock(&cliente->currentClient->pantalla);
+    printf("Client %d pedido terminado\n",cliente->id+1); 
+    fflush(stdout);
+    pthread_mutex_unlock(&cliente->currentClient->pantalla);
     pthread_mutex_unlock(&smutex->cobrar);
 }
 

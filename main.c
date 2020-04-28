@@ -89,8 +89,14 @@ int main(){
     pthread_t cashier;
     pthread_create(&cashier, NULL, cashierThread, (void *)&mercadoChino);
     // pthread_join(mercadoChino.client_threads[19],NULL);
+
     pthread_join(street,NULL);
-    pthread_join(cashier,NULL);
+    sleep(2);
+    printf("Cerrando Local...zzzzz\n");
+
+    sleep(1);
+    pthread_join(street,NULL);
+    // pthread_join(cashier,NULL);
 
     return 0;
 }
@@ -158,7 +164,7 @@ void *streetThread(void *arg){
     mercadoChino->cantClientes = 0;
 
     for(int i = 0; i < cant_max; i++){
-        usleep((rand()%3 + 2) * MS);
+        usleep((rand()%30 + 20) * MS);
 
         Client *client = calloc(1,sizeof(Client));
         client->id = i;
@@ -198,10 +204,10 @@ void *clientThread(void *arg){
     if(respuesta == 0){
         pthread_mutex_lock(&client->currentClient->currentmux);
         client->currentClient->currentId = client->id;
-        // printf("Client %d served\n",client->id+1);
+        printf("Client %d atendido\n",client->id+1);
         pthread_mutex_unlock(&client->currentClient->currentmux);
     }else{
-        printf("Client %d left without food\n", client->id+1);
+        printf("Client %d left without food estan atendiendo a %d\n", client->id+1,client->currentClient->currentId + 1);
     }
 
     pthread_exit(NULL);
@@ -213,10 +219,7 @@ void *cashierThread(void *arg){
     FoodPlace *mercadoChino = (FoodPlace *)arg;
     
     while(1){
-
-
-
-        usleep(10000);
+        // usleep(10000);
         pthread_mutex_unlock(&mercadoChino->currentClient->timemux);
         // printf("%d\n", mercadoChino->currentClient->currentId);
         if(mercadoChino->currentClient->currentId > -1 && mercadoChino->clients[mercadoChino->currentClient->currentId].served == 0){
@@ -224,11 +227,7 @@ void *cashierThread(void *arg){
             atender(mercadoChino->smutex, &mercadoChino->clients[mercadoChino->currentClient->currentId]);
             cobrar(mercadoChino->smutex, &mercadoChino->clients[mercadoChino->currentClient->currentId]);
             pthread_mutex_unlock(&mercadoChino->currentClient->currentmux); 
-        } 
-        
-
-        
-        
+        }     
     }
     return NULL;
 }
@@ -236,16 +235,13 @@ void *cashierThread(void *arg){
 void atender(SplitMutex *smutex, Client *cliente){
     pthread_mutex_lock(&smutex->cobrar);    
     pthread_mutex_lock(&cliente->currentClient->pantalla);
-    printf("Client %d por atender\n",cliente->id+1);
+    // printf("Client %d por atender\n",cliente->id+1);
     fflush(stdout);
     pthread_mutex_unlock(&cliente->currentClient->pantalla);
     int tiempo;
     tiempo = cliente->choice.prepTime;
     cliente->served = 1;
-    while(!tiempo){
-        usleep(1 * MS);
-        tiempo--;
-    }
+    usleep(tiempo * MS);
     pthread_mutex_unlock(&smutex->atender); 
 }
 void cobrar(SplitMutex *smutex, Client *cliente){
